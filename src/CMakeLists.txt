@@ -17,7 +17,9 @@ add_library(kompute Algorithm.cpp
     OpTensorSyncLocal.cpp
     Sequence.cpp
     Tensor.cpp
-    Core.cpp)
+    Core.cpp 
+    TypeContainer.cpp
+    Buffer.cpp)
 
 add_library(kompute::kompute ALIAS kompute)
 

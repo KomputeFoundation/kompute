@@ -3,11 +3,14 @@
 
 #include <set>
 #include <unordered_map>
+#include <typeinfo>
 
 #include "kompute/Core.hpp"
 
 #include "kompute/Sequence.hpp"
 #include "logger/Logger.hpp"
+#include <kompute/ABCTypeContainer.hpp>
+#include "kompute/Buffer.hpp"
 
 #define KP_DEFAULT_SESSION "DEFAULT"
 
@@ -102,20 +105,33 @@ class Manager
         return this->tensorT<float>(data, tensorType);
     }
 
+    template<typename T>
     std::shared_ptr<Tensor> tensor(
       void* data,
       uint32_t elementTotalCount,
-      uint32_t elementMemorySize,
-      const Tensor::TensorDataTypes& dataType,
       Tensor::TensorTypes tensorType = Tensor::TensorTypes::eDevice)
     {
-        std::shared_ptr<Tensor> tensor{ new kp::Tensor(this->mPhysicalDevice,
-                                                       this->mDevice,
-                                                       data,
-                                                       elementTotalCount,
-                                                       elementMemorySize,
-                                                       dataType,
-                                                       tensorType) };
+        return this->internal_tensor(data,
+                              elementTotalCount,
+                              sizeof(T),
+                              new TypeContainer<T>(), tensorType);
+    }
+
+    std::shared_ptr<Tensor> internal_tensor(
+      void* data,
+      uint32_t elementTotalCount,
+      uint32_t elementMemorySize,
+      ABCTypeContainer* dataType,
+      Tensor::TensorTypes tensorType = Tensor::TensorTypes::eDevice)
+    {
+        std::shared_ptr<Tensor> tensor =
+          std::make_shared<kp::Tensor>(this->mPhysicalDevice,
+                                       this->mDevice,
+                                       data,
+                                       elementTotalCount,
+                                       elementMemorySize,
+                                       dataType,
+                                       tensorType);
 
         if (this->mManageResources) {
             this->mManagedTensors.push_back(tensor);
@@ -146,8 +162,11 @@ class Manager
       const std::vector<float>& specializationConstants = {},
       const std::vector<float>& pushConstants = {})
     {
-        return this->algorithm<>(
-          tensors, spirv, workgroup, specializationConstants, pushConstants);
+        return this->algorithm(tensors,
+                                 spirv,
+                                 workgroup,
+                                 Buffer::from_vector(specializationConstants),
+                                 Buffer::from_vector(pushConstants));
     }
 
     /**
@@ -172,7 +191,20 @@ class Manager
       const std::vector<S>& specializationConstants,
       const std::vector<P>& pushConstants)
     {
+        return this->algorithm(tensors,
+                               spirv,
+                               workgroup,
+                               Buffer::from_vector(specializationConstants),
+                               Buffer::from_vector(pushConstants));
+    }
 
+    std::shared_ptr<Algorithm> algorithm(
+      const std::vector<std::shared_ptr<Tensor>>& tensors = {},
+      const std::vector<uint32_t>& spirv = {},
+      const Workgroup& workgroup = {},
+      const Buffer& specializationConstants = { 0, 0, 0 },
+      const Buffer& pushConstants = { 0, 0, 0 })
+    {
         KP_LOG_DEBUG("Kompute Manager algorithm creation triggered");
 
         std::shared_ptr<Algorithm> algorithm{ new kp::Algorithm(

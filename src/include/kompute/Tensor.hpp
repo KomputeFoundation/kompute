@@ -5,6 +5,8 @@
 #include "logger/Logger.hpp"
 #include <memory>
 #include <string>
+#include <typeinfo>
+#include "TypeContainer.hpp"
 
 namespace kp {
 
@@ -31,16 +33,8 @@ class Tensor
         eHost = 1,    ///< Type is host memory, source and destination
         eStorage = 2, ///< Type is Device memory (only)
     };
-    enum class TensorDataTypes
-    {
-        eBool = 0,
-        eInt = 1,
-        eUnsignedInt = 2,
-        eFloat = 3,
-        eDouble = 4,
-    };
 
-    static std::string toString(TensorDataTypes dt);
+    static std::string toString(ABCTypeContainer& dt);
     static std::string toString(TensorTypes dt);
 
     /**
@@ -58,7 +52,7 @@ class Tensor
            void* data,
            uint32_t elementTotalCount,
            uint32_t elementMemorySize,
-           const TensorDataTypes& dataType,
+           ABCTypeContainer* dataType,
            const TensorTypes& tensorType = TensorTypes::eDevice);
 
     /**
@@ -201,7 +195,7 @@ class Tensor
      *
      * @return Data type of tensor of type kp::Tensor::TensorDataTypes
      */
-    TensorDataTypes dataType();
+    ABCTypeContainer* dataType();
 
     /**
      * Retrieve the raw data via the pointer to the memory that contains the raw
@@ -247,7 +241,7 @@ class Tensor
   protected:
     // -------------- ALWAYS OWNED RESOURCES
     TensorTypes mTensorType;
-    TensorDataTypes mDataType;
+    ABCTypeContainer* mDataType;
     uint32_t mSize;
     uint32_t mDataTypeMemorySize;
     void* mRawData;
@@ -309,7 +303,7 @@ class TensorT : public Tensor
                (void*)data.data(),
                data.size(),
                sizeof(T),
-               this->dataType(),
+               new TypeContainer<T>(),
                tensorType)
     {
         KP_LOG_DEBUG("Kompute TensorT constructor with data size {}",
@@ -340,8 +334,6 @@ class TensorT : public Tensor
 
         Tensor::setRawData(data.data());
     }
-
-    TensorDataTypes dataType();
 };
 
 } // End namespace kp
